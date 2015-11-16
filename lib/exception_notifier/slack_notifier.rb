@@ -10,6 +10,7 @@ module ExceptionNotifier
 
         webhook_url = options.fetch(:webhook_url)
         @message_opts = options.fetch(:additional_parameters, {})
+        @backtrace_callback = options.fetch(:backtrace_callback, nil)
         @notifier = Slack::Notifier.new webhook_url, options
       rescue
         @notifier = nil
@@ -21,7 +22,10 @@ module ExceptionNotifier
       message += " on '#{exception.backtrace.first}'" if exception.backtrace
 
       message = enrich_message_with_data(message, options)
-      message = enrich_message_with_backtrace(message, exception) if exception.backtrace
+      if exception.backtrace
+        @backtrace_callback.call(options, self, exception.backtrace, @message_opts) if @backtrace_callback.respond_to?(:call)
+        message = enrich_message_with_backtrace(message, exception) 
+      end
 
       @notifier.ping(message, @message_opts) if valid?
     end

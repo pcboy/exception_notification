@@ -75,6 +75,28 @@ class SlackNotifierTest < ActiveSupport::TestCase
     slack_notifier.call(@exception)
   end
 
+  test "should call the backtrace callback if specified" do
+    options = {
+      webhook_url: "http://slack.webhook.url",
+      username: "test",
+      custom_hook: "hook",
+      backtrace_callback: proc { |opts, notifier, backtrace, message_opts| 
+        (message_opts[:attachments] ||= []) << { text: "#{backtrace.join("\n")}", color: 'danger' }
+      },
+      additional_parameters: {
+        icon_url: "icon",
+      }
+    }
+
+    Slack::Notifier.any_instance.expects(:ping).with(fake_notification,
+                                                     {:icon_url => 'icon',
+                                                      :attachments =>[{
+                                                       :text => "backtrace line 1\nbacktrace line 2", :color => 'danger'}
+                                                     ]})
+    slack_notifier = ExceptionNotifier::SlackNotifier.new(options)
+    slack_notifier.call(@exception)
+  end
+
   test "shouldn't send a slack notification if webhook url is missing" do
     options = {}
 
